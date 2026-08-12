@@ -13,9 +13,15 @@ st.markdown("Aplikasi interaktif untuk menemukan pola pembelian obat/suplemen me
 
 @st.cache_data
 def load_data():
-    # Membaca dataset asli
+    # 1. Membaca dataset asli
     df = pd.read_csv("Sales_Final_Unique.csv", delimiter=";")
-    return df
+    
+    # 2. Mengubah kolom teks 'Items' menjadi format One-Hot Encoding (True/False)
+    # Ini adalah kunci agar algoritma Apriori tidak error saat membaca data
+    encoded_df = df['Items'].str.get_dummies(sep=', ')
+    encoded_df = encoded_df.astype(bool)
+    
+    return encoded_df
 
 df = load_data()
 
@@ -23,7 +29,6 @@ st.sidebar.header("⚙️ Pengaturan Apriori")
 min_support_val = st.sidebar.slider("Minimum Support", 0.01, 0.50, 0.20, 0.01)
 min_confidence_val = st.sidebar.slider("Minimum Confidence", 0.10, 1.00, 0.50, 0.05)
 
-# Menjalankan algoritma apriori
 frequent_itemsets = apriori(df, min_support=min_support_val, use_colnames=True)
 
 if frequent_itemsets.empty:
