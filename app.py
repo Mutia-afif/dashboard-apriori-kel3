@@ -14,7 +14,7 @@ st.markdown("Aplikasi interaktif untuk menemukan pola pembelian obat/suplemen me
 @st.cache_data
 def load_data():
     # Membaca dataset asli milikmu
-    df = pd.read_csv("Sales_Final_Unique.csv")
+   df = pd.read_csv("Sales_Final_Unique.csv", delimiter=";")
     return df
 
 df = load_data()
