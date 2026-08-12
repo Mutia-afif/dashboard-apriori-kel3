@@ -13,8 +13,8 @@ st.markdown("Aplikasi interaktif untuk menemukan pola pembelian obat/suplemen me
 
 @st.cache_data
 def load_data():
-    # Membaca dataset asli milikmu
-   df = pd.read_csv("Sales_Final_Unique.csv", delimiter=";")
+    # Membaca dataset asli
+    df = pd.read_csv("Sales_Final_Unique.csv", delimiter=";")
     return df
 
 df = load_data()
@@ -23,6 +23,7 @@ st.sidebar.header("⚙️ Pengaturan Apriori")
 min_support_val = st.sidebar.slider("Minimum Support", 0.01, 0.50, 0.20, 0.01)
 min_confidence_val = st.sidebar.slider("Minimum Confidence", 0.10, 1.00, 0.50, 0.05)
 
+# Menjalankan algoritma apriori
 frequent_itemsets = apriori(df, min_support=min_support_val, use_colnames=True)
 
 if frequent_itemsets.empty:
@@ -35,7 +36,7 @@ tab1, tab2, tab3, tab4 = st.tabs(["📊 Ringkasan Data (EDA)", "📋 Association
 
 with tab1:
     st.header("Ringkasan Data Transaksi")
-    st.write(f"Total Transaksi (Dummy): **{len(df)}**")
+    st.write(f"Total Transaksi: **{len(df)}**")
     
 with tab2:
     st.header("Tabel Association Rules")
