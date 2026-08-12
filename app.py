@@ -13,11 +13,10 @@ st.markdown("Aplikasi interaktif untuk menemukan pola pembelian obat/suplemen me
 
 @st.cache_data
 def load_data():
-    # 1. Membaca dataset asli
+    # Membaca dataset asli milikmu
     df = pd.read_csv("Sales_Final_Unique.csv", delimiter=";")
     
-    # 2. Mengubah kolom teks 'Items' menjadi format One-Hot Encoding (True/False)
-    # Ini adalah kunci agar algoritma Apriori tidak error saat membaca data
+    # Mengubah kolom teks 'Items' menjadi format One-Hot Encoding (True/False)
     encoded_df = df['Items'].str.get_dummies(sep=', ')
     encoded_df = encoded_df.astype(bool)
     
@@ -25,10 +24,14 @@ def load_data():
 
 df = load_data()
 
+# --- PENGATURAN SLIDER DI SIDEBAR ---
 st.sidebar.header("⚙️ Pengaturan Apriori")
-min_support_val = st.sidebar.slider("Minimum Support", 0.01, 0.50, 0.20, 0.01)
-min_confidence_val = st.sidebar.slider("Minimum Confidence", 0.10, 1.00, 0.50, 0.05)
+# Nilai default Minimum Support diset ke 0.03
+min_support_val = st.sidebar.slider("Minimum Support", 0.01, 0.50, 0.03, 0.01)
+# Nilai default Minimum Confidence diset ke 0.03
+min_confidence_val = st.sidebar.slider("Minimum Confidence", 0.01, 1.00, 0.03, 0.01)
 
+# Menjalankan algoritma apriori
 frequent_itemsets = apriori(df, min_support=min_support_val, use_colnames=True)
 
 if frequent_itemsets.empty:
@@ -48,7 +51,7 @@ with tab2:
     if not rules.empty:
         st.dataframe(rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']])
     else:
-        st.info("Tidak ada aturan (rules) yang terbentuk.")
+        st.info("Tidak ada aturan (rules) yang terbentuk dengan parameter ini.")
 
 with tab3:
     st.header("Simulator Rekomendasi Bundling")
@@ -63,6 +66,10 @@ with tab3:
         if not recommendations.empty:
             st.success(f"Rekomendasi untuk **{selected_item}** ditemukan!")
             st.dataframe(recommendations[['consequents', 'confidence', 'lift']])
+        else:
+            st.info("Tidak ada rekomendasi bundling untuk produk ini pada ambang batas saat ini.")
+    else:
+        st.warning("Rules kosong, simulator tidak dapat dijalankan.")
 
 with tab4:
     st.header("Visualisasi Jaringan Hubungan Produk")
@@ -79,3 +86,5 @@ with tab4:
         nx.draw_networkx_labels(G, pos, font_size=8, ax=ax)
         plt.axis("off")
         st.pyplot(fig)
+    else:
+        st.info("Aturan asosiasi terlalu sedikit untuk divisualisasikan.")
