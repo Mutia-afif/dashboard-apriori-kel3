@@ -5,7 +5,6 @@ import numpy as np
 import networkx as nx
 import streamlit as st
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 from mlxtend.frequent_patterns import apriori, association_rules
 
@@ -44,7 +43,6 @@ st.markdown('<div class="sub-header">Aplikasi Analisis Pola Pembelian Produk & A
 # FUNGSI MEMBACA CSV AMAN (ANTI PARSER ERROR)
 # ============================================================
 def load_csv_safely(file_source):
-    """Mencoba membaca CSV dengan berbagai macam separator (koma, titik koma, tab)"""
     separators = [',', ';', '\t', '|']
     for sep in separators:
         try:
@@ -63,7 +61,6 @@ def load_csv_safely(file_source):
 # 2. FUNGSI KHUSUS RENDER NETWORK DIAGRAM (PYVIS RAPI)
 # ============================================================
 def render_pyvis_network(df_rules):
-    """Fungsi menggambar Network Diagram Apriori secara Interaktif & Rapi"""
     try:
         from pyvis.network import Network
         import streamlit.components.v1 as components
@@ -168,12 +165,11 @@ elif os.path.exists('Sales_Final_Unique.csv'):
 if df_raw is not None:
     st.sidebar.subheader("🎛️ Parameter Apriori")
     
-    # ADJUSTABLE PER 0.01 (Bisa digeser halus tanpa lompat jauh)
     min_support = st.sidebar.slider(
         "Minimum Support", 
         min_value=0.001, 
         max_value=0.5, 
-        value=0.01, 
+        value=0.03, 
         step=0.01, 
         format="%.2f"
     )
@@ -182,7 +178,7 @@ if df_raw is not None:
         "Minimum Confidence", 
         min_value=0.01, 
         max_value=1.0, 
-        value=0.10, 
+        value=0.03, 
         step=0.01, 
         format="%.2f"
     )
@@ -197,27 +193,40 @@ if df_raw is not None:
     )
 
     cols = df_raw.columns.tolist()
-    col_trans = st.sidebar.selectbox("Pilih Kolom ID Transaksi / Invoice", cols, index=0)
-    col_prod = st.sidebar.selectbox("Pilih Kolom Nama Produk", cols, index=1 if len(cols) > 1 else 0)
+    
+    # Deteksi Otomatis Kolom Transaksi & Produk
+    default_trans_idx = 0
+    default_prod_idx = 1 if len(cols) > 1 else 0
+
+    for i, c in enumerate(cols):
+        c_lower = c.lower()
+        if 'item' in c_lower or 'product' in c_lower or 'nama' in c_lower or 'deskripsi' in c_lower or 'description' in c_lower:
+            default_prod_idx = i
+        elif 'trans' in c_lower or 'invoice' in c_lower or 'id' in c_lower or 'nota' in c_lower:
+            default_trans_idx = i
+
+    col_trans = st.sidebar.selectbox("Pilih Kolom ID Transaksi / Invoice", cols, index=default_trans_idx)
+    col_prod = st.sidebar.selectbox("Pilih Kolom Nama Produk", cols, index=default_prod_idx)
 
     # ============================================================
     # 4. PREPROCESSING DATA & ALGORITMA APRIORI
     # ============================================================
     with st.spinner("Memproses Data & Menghitung Apriori..."):
+        # Pivot Table / Unstack untuk membuat One-Hot Matrix (Boolean)
         basket = (df_raw.groupby([col_trans, col_prod])[col_prod]
                   .count().unstack().reset_index().fillna(0)
                   .set_index(col_trans))
         
-        def encode_units(x):
-            return 1 if x >= 1 else 0
+        # Konversi ke True/False (Boolean) agar mlxtend Apriori bekerja 100% tepat
+        basket_sets = basket.applymap(lambda x: True if x >= 1 else False)
 
-        basket_sets = basket.map(encode_units) if hasattr(basket, 'map') else basket.applymap(encode_units)
-
-        frequent_itemsets = apriori(basket_sets, min_support=min_support, use_colnames=True)
+        # Jalankan Apriori dengan max_len=2 persis seperti Notebook
+        frequent_itemsets = apriori(basket_sets, min_support=min_support, use_colnames=True, max_len=2)
         
         if not frequent_itemsets.empty:
             rules = association_rules(frequent_itemsets, metric="confidence", min_threshold=min_confidence)
-            rules = rules[rules['lift'] >= min_lift]
+            if 'lift' in rules.columns:
+                rules = rules[rules['lift'] >= min_lift]
         else:
             rules = pd.DataFrame()
 
@@ -251,7 +260,7 @@ if df_raw is not None:
             csv = rules_display.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Download Hasil Rules (CSV)", csv, "hasil_apriori_rules.csv", "text/csv")
         else:
-            st.warning("Aturan Asosiasi tidak ditemukan! Coba turunkan nilai Minimum Support atau Minimum Confidence di sidebar.")
+            st.warning("Aturan Asosiasi tidak ditemukan! Coba sesuaikan nilai Minimum Support, Confidence, atau Lift di sidebar.")
 
     with tab2:
         st.subheader("🕸️ Diagram Network Asosiasi Produk (PyVis Interaktif)")
