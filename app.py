@@ -2,12 +2,8 @@ import os
 import tempfile
 import streamlit as st
 import networkx as nx
-from pyvis.network import Network
-import streamlit.components.v1 as components
 
-# ============================================================
-# SETUP HALAMAN STREAMLIT
-# ============================================================
+# Setup Konfigurasi Halaman Streamlit
 st.set_page_config(
     page_title="Visualisasi Network Asosiasi Produk",
     layout="wide",
@@ -47,133 +43,115 @@ G = nx.Graph()
 G.add_edges_from(edges)
 
 # ============================================================
-# 3. PENAMPILAN METRIK STREAMLIT (NILAI PLUS DIBOARD)
+# 3. STATISTIK METRIK DASHBOARD
 # ============================================================
 col1, col2, col3 = st.columns(3)
 with col1:
     st.metric(label="Total Produk (Nodes)", value=G.number_of_nodes())
 with col2:
-    st.metric(label="Total Aturan Atas Pasangan (Edges)", value=G.number_of_edges())
+    st.metric(label="Total Pasangan Aturan (Edges)", value=G.number_of_edges())
 with col3:
     st.metric(label="Kepadatan Network (Density)", value=f"{nx.density(G):.3f}")
 
 st.markdown("---")
 
 # ============================================================
-# 4. INISIALISASI PYVIS NETWORK (TAMPILAN KHUSUS WEB)
+# 4. RENDER UTAMA MENGGUNAKAN PYVIS KHUSUS WEB
 # ============================================================
-# Menggunakan cdn_resources='remote' wajib untuk deployment di Streamlit Cloud
-net = Network(
-    height="750px", 
-    width="100%", 
-    bgcolor="#FFFFFF", 
-    font_color="#1A1A1A",
-    notebook=False,
-    cdn_resources='remote'
-)
+try:
+    from pyvis.network import Network
+    import streamlit.components.v1 as components
 
-# Import Graph dari NetworkX ke Pyvis
-net.from_nx(G)
+    # Inisialisasi Pyvis Network
+    net = Network(
+        height="750px", 
+        width="100%", 
+        bgcolor="#FFFFFF", 
+        font_color="#1A1A1A",
+        notebook=False,
+        cdn_resources='remote'
+    )
+    net.from_nx(G)
 
-# ============================================================
-# 5. STYLING NODE & LABEL DENGAN AUTO-TEXT WRAPPING
-# ============================================================
-for node in net.nodes:
-    node_id = node["id"]
-    
-    # Bungkus teks nama produk yang panjang agar tidak terlalu melebar (maks 15 karakter per baris)
-    words = node_id.split(' ')
-    wrapped_label = ""
-    line = ""
-    for w in words:
-        if len(line + w) > 12:
-            wrapped_label += line.strip() + "\n"
-            line = w + " "
-        else:
-            line += w + " "
-    wrapped_label += line.strip()
-    
-    # Kustomisasi Properti Tampilan Node
-    node["label"] = wrapped_label
-    node["shape"] = "ellipse"                  # Bentuk node elips/lingkaran rapi
-    node["color"] = {
-        "background": "#89CFF0",               # Warna background isi
-        "border": "#1F4E79",                   # Warna garis pinggir
-        "highlight": {
-            "background": "#5FA8D3",
-            "border": "#002B49"
+    # Styling Node & Auto Text-Wrapping (Pemotongan Kata Agar Tidak Melar)
+    for node in net.nodes:
+        node_id = node["id"]
+        words = node_id.split(' ')
+        wrapped_label = ""
+        line = ""
+        for w in words:
+            if len(line + w) > 12:
+                wrapped_label += line.strip() + "\n"
+                line = w + " "
+            else:
+                line += w + " "
+        wrapped_label += line.strip()
+        
+        node["label"] = wrapped_label
+        node["shape"] = "ellipse"
+        node["color"] = {
+            "background": "#89CFF0",
+            "border": "#1F4E79",
+            "highlight": {"background": "#5FA8D3", "border": "#002B49"}
         }
+        node["borderWidth"] = 2
+        node["size"] = 28
+        node["font"] = {"size": 13, "face": "Arial", "bold": True}
+
+    # Atur Fisika/Layout Anti-Berantakan
+    net.set_options("""
+    var options = {
+      "edges": {
+        "color": {"color": "#707070"},
+        "width": 2
+      },
+      "physics": {
+        "forceAtlas2Based": {
+          "gravitationalConstant": -100,
+          "centralGravity": 0.01,
+          "springLength": 160,
+          "springConstant": 0.08,
+          "damping": 0.4
+        },
+        "solver": "forceAtlas2Based",
+        "stabilization": {
+          "enabled": true,
+          "iterations": 1000
+        }
+      },
+      "interaction": {
+        "hover": true,
+        "navigationButtons": true
+      }
     }
-    node["borderWidth"] = 2                    # Ketebalan garis pinggir
-    node["borderWidthSelected"] = 4
-    node["size"] = 30                          # Ukuran node proporsional
-    node["font"] = {
-        "size": 13, 
-        "face": "Arial", 
-        "bold": True,
-        "multi": "md"                          # Mendukung multiline (\n)
-    }
+    """)
 
-# ============================================================
-# 6. ATUR FISIKA (PHYSICS) ANTI-BERANTAKAN & STABILISASI
-# ============================================================
-# Menggunakan 'forceAtlas2Based' agar penyebaran titik saling mendorong secara seimbang
-net.set_options("""
-var options = {
-  "nodes": {
-    "shadow": true
-  },
-  "edges": {
-    "color": {
-      "color": "#707070",
-      "highlight": "#1F4E79"
-    },
-    "width": 2,
-    "smooth": {
-      "type": "continuous"
-    }
-  },
-  "physics": {
-    "forceAtlas2Based": {
-      "gravitationalConstant": -100,
-      "centralGravity": 0.01,
-      "springLength": 160,
-      "springConstant": 0.08,
-      "damping": 0.4
-    },
-    "maxVelocity": 50,
-    "minVelocity": 0.75,
-    "solver": "forceAtlas2Based",
-    "stabilization": {
-      "enabled": true,
-      "iterations": 1000,
-      "updateInterval": 25
-    }
-  },
-  "interaction": {
-    "hover": true,
-    "navigationButtons": true,
-    "keyboard": true
-  }
-}
-""")
+    # Render via temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp_file:
+        path_html = tmp_file.name
+        net.save_graph(path_html)
 
-# ============================================================
-# 7. RENDER DI STREAMLIT VIA TEMPORARY FILE HTML
-# ============================================================
-with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp_file:
-    path_html = tmp_file.name
-    net.save_graph(path_html)
+    with open(path_html, 'r', encoding='utf-8') as f:
+        html_data = f.read()
 
-# BACA FILE HTML UNTUK DITAMPILKAN DI COMPONENTS STREAMLIT
-with open(path_html, 'r', encoding='utf-8') as f:
-    html_data = f.read()
+    components.html(html_data, height=760, scrolling=True)
 
-# Tampilkan di Streamlit dengan tinggi 760px
-components.html(html_data, height=760, scrolling=True)
+    if os.path.exists(path_html):
+        os.remove(path_html)
 
-# Hapus file temporary setelah ditampilkan agar tidak memenuhi RAM server
-if os.path.exists(path_html):
-    os.remove(path_html)
-
-st.success("✅ Diagram Network berhasil ditampilkan secara rapi & interaktif!")
+except ModuleNotFoundError:
+    st.error("⚠️ Module 'pyvis' belum terinstall di server. Pastikan 'pyvis' sudah ditambahkan di file requirements.txt di GitHub!")
+    
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+    pos = nx.kamada_kawai_layout(G)
+    nx.draw_networkx_edges(G, pos, edge_color='#666666', width=1.8, alpha=0.8, ax=ax)
+    nx.draw_networkx_nodes(G, pos, node_size=800, node_color='#6BAED6', edgecolors='#1F4E79', linewidths=1.5, ax=ax)
+    
+    for node, (x, y) in pos.items():
+        label_text = "\n".join(node.split(' ', 2)) if len(node) > 12 else node
+        ax.text(x, y + 0.05, label_text, fontsize=7, fontweight='bold', ha='center', va='bottom',
+                bbox=dict(boxstyle="round,pad=0.25", fc="#FFFFFF", ec="#B0C4DE", lw=1, alpha=0.95))
+    
+    ax.axis('off')
+    st.pyplot(fig)
