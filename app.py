@@ -199,10 +199,10 @@ if df_raw is not None:
     default_prod_idx = 1 if len(cols) > 1 else 0
 
     for i, c in enumerate(cols):
-        c_lower = c.lower()
-        if 'item' in c_lower or 'product' in c_lower or 'nama' in c_lower or 'deskripsi' in c_lower or 'description' in c_lower:
+        c_lower = str(c).lower()
+        if any(kw in c_lower for kw in ['item', 'product', 'nama', 'deskripsi', 'description']):
             default_prod_idx = i
-        elif 'trans' in c_lower or 'invoice' in c_lower or 'id' in c_lower or 'nota' in c_lower:
+        elif any(kw in c_lower for kw in ['trans', 'invoice', 'id', 'nota']):
             default_trans_idx = i
 
     col_trans = st.sidebar.selectbox("Pilih Kolom ID Transaksi / Invoice", cols, index=default_trans_idx)
@@ -212,13 +212,13 @@ if df_raw is not None:
     # 4. PREPROCESSING DATA & ALGORITMA APRIORI
     # ============================================================
     with st.spinner("Memproses Data & Menghitung Apriori..."):
-        # Pivot Table / Unstack untuk membuat One-Hot Matrix (Boolean)
+        # Pivot Table / Unstack untuk membuat One-Hot Matrix
         basket = (df_raw.groupby([col_trans, col_prod])[col_prod]
                   .count().unstack().reset_index().fillna(0)
                   .set_index(col_trans))
         
-        # Konversi ke True/False (Boolean) agar mlxtend Apriori bekerja 100% tepat
-        basket_sets = basket.applymap(lambda x: True if x >= 1 else False)
+        # PERBAIKAN: Konversi Boolean bebas error di semua versi Pandas
+        basket_sets = basket >= 1
 
         # Jalankan Apriori dengan max_len=2 persis seperti Notebook
         frequent_itemsets = apriori(basket_sets, min_support=min_support, use_colnames=True, max_len=2)
