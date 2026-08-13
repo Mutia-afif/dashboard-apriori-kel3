@@ -19,7 +19,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom Styling CSS agar UI lebih modern
 st.markdown("""
 <style>
     .main-header {
@@ -42,6 +41,26 @@ st.markdown('<div class="main-header">🛒 Dashboard Market Basket Analysis (Apr
 st.markdown('<div class="sub-header">Aplikasi Analisis Pola Pembelian Produk & Aturan Asosiasi Interaktif</div>', unsafe_allow_html=True)
 
 # ============================================================
+# FUNGSI MEMBACA CSV AMAN (ANTI PARSER ERROR)
+# ============================================================
+def load_csv_safely(file_source):
+    """Mencoba membaca CSV dengan berbagai macam separator (koma, titik koma, tab)"""
+    separators = [',', ';', '\t', '|']
+    for sep in separators:
+        try:
+            if hasattr(file_source, 'seek'):
+                file_source.seek(0)
+            df = pd.read_csv(file_source, sep=sep, on_bad_lines='skip', engine='python')
+            if df.shape[1] > 1: # Jika berhasil terpisah jadi beberapa kolom
+                return df
+        except Exception:
+            continue
+    # Fallback terakhir
+    if hasattr(file_source, 'seek'):
+        file_source.seek(0)
+    return pd.read_csv(file_source, on_bad_lines='skip', engine='python')
+
+# ============================================================
 # 2. FUNGSI KHUSUS RENDER NETWORK DIAGRAM (PYVIS RAPI)
 # ============================================================
 def render_pyvis_network(df_rules):
@@ -52,13 +71,11 @@ def render_pyvis_network(df_rules):
 
         G = nx.Graph()
         
-        # Ekstrak aturan dari dataframe
         for _, row in df_rules.iterrows():
             antecedents = list(row['antecedents'])[0] if isinstance(row['antecedents'], (set, frozenset)) else str(row['antecedents'])
             consequents = list(row['consequents'])[0] if isinstance(row['consequents'], (set, frozenset)) else str(row['consequents'])
             G.add_edge(antecedents, consequents)
 
-        # Inisialisasi Pyvis Network
         net = Network(
             height="650px", 
             width="100%", 
@@ -69,10 +86,9 @@ def render_pyvis_network(df_rules):
         )
         net.from_nx(G)
 
-        # Auto Text-Wrapping & Formatting Node
         for node in net.nodes:
             node_id = node["id"]
-            words = node_id.split(' ')
+            words = str(node_id).split(' ')
             wrapped_label = ""
             line = ""
             for w in words:
@@ -94,7 +110,6 @@ def render_pyvis_network(df_rules):
             node["size"] = 26
             node["font"] = {"size": 13, "face": "Arial", "bold": True}
 
-        # Layout Physics Anti-Berantakan
         net.set_options("""
         var options = {
           "edges": { "color": {"color": "#707070"}, "width": 2 },
@@ -113,7 +128,6 @@ def render_pyvis_network(df_rules):
         }
         """)
 
-        # Render ke HTML Temporary
         with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp_file:
             path_html = tmp_file.name
             net.save_graph(path_html)
@@ -133,7 +147,7 @@ def render_pyvis_network(df_rules):
         nx.draw_networkx_edges(G, pos, edge_color='#666666', width=1.5, ax=ax)
         nx.draw_networkx_nodes(G, pos, node_size=600, node_color='#6BAED6', edgecolors='#1F4E79', ax=ax)
         for node, (x, y) in pos.items():
-            label_text = "\n".join(node.split(' ', 2)) if len(node) > 12 else node
+            label_text = "\n".join(str(node).split(' ', 2)) if len(str(node)) > 12 else str(node)
             ax.text(x, y + 0.05, label_text, fontsize=7, fontweight='bold', ha='center', va='bottom',
                     bbox=dict(boxstyle="round,pad=0.25", fc="#FFFFFF", ec="#B0C4DE", lw=1))
         ax.axis('off')
@@ -146,13 +160,12 @@ st.sidebar.header("⚙️ Pengaturan Analysis")
 
 uploaded_file = st.sidebar.file_uploader("Upload File CSV Penjualan", type=["csv"])
 
-# Jika tidak ada upload file, gunakan file bawaan 'Sales_Final_Unique.csv'
+# Pembacaan File Aman
+df_raw = None
 if uploaded_file is not None:
-    df_raw = pd.read_csv(uploaded_file)
+    df_raw = load_csv_safely(uploaded_file)
 elif os.path.exists('Sales_Final_Unique.csv'):
-    df_raw = pd.read_csv('Sales_Final_Unique.csv')
-else:
-    df_raw = None
+    df_raw = load_csv_safely('Sales_Final_Unique.csv')
 
 if df_raw is not None:
     st.sidebar.subheader("🎛️ Parameter Apriori")
@@ -192,7 +205,7 @@ if df_raw is not None:
     # ============================================================
     # 5. TAMPILAN FITUR DASHBOARD UTAMA
     # ============================================================
-    st.subheader("📊 ringkasan Transaksi Penjualan")
+    st.subheader("📊 Ringkasan Transaksi Penjualan")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total Transaksi", basket_sets.shape[0])
     c2.metric("Total Jenis Produk", basket_sets.shape[1])
@@ -207,7 +220,6 @@ if df_raw is not None:
     with tab1:
         st.subheader("📋 Daftar Aturan Asosiasi (Association Rules)")
         if not rules.empty:
-            # Format tampilan dataframe rules
             rules_display = rules.copy()
             rules_display['antecedents'] = rules_display['antecedents'].apply(lambda x: ', '.join(list(x)))
             rules_display['consequents'] = rules_display['consequents'].apply(lambda x: ', '.join(list(x)))
@@ -218,7 +230,6 @@ if df_raw is not None:
                 use_container_width=True
             )
             
-            # Download CSV Button
             csv = rules_display.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Download Hasil Rules (CSV)", csv, "hasil_apriori_rules.csv", "text/csv")
         else:
@@ -226,7 +237,7 @@ if df_raw is not None:
 
     with tab2:
         st.subheader("🕸️ Diagram Network Asosiasi Produk (PyVis Interaktif)")
-        st.write("Titik lingkaran merepresentasikan produk, dan garis menunjukkan aturan hubungan antar produk. *Lingkaran dan teks sudah dirapikan agar tidak bertumpuk.*")
+        st.write("Titik lingkaran merepresentasikan produk, dan garis menunjukkan aturan hubungan antar produk.")
         
         if not rules.empty:
             render_pyvis_network(rules)
