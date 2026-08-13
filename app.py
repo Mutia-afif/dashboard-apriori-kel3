@@ -51,11 +51,10 @@ def load_csv_safely(file_source):
             if hasattr(file_source, 'seek'):
                 file_source.seek(0)
             df = pd.read_csv(file_source, sep=sep, on_bad_lines='skip', engine='python')
-            if df.shape[1] > 1: # Jika berhasil terpisah jadi beberapa kolom
+            if df.shape[1] > 1:
                 return df
         except Exception:
             continue
-    # Fallback terakhir
     if hasattr(file_source, 'seek'):
         file_source.seek(0)
     return pd.read_csv(file_source, on_bad_lines='skip', engine='python')
@@ -141,7 +140,7 @@ def render_pyvis_network(df_rules):
             os.remove(path_html)
 
     except Exception as e:
-        st.warning(f"Menampilkan versi alternatif statis (Matplotlib):")
+        st.warning("Menampilkan versi alternatif statis (Matplotlib):")
         fig, ax = plt.subplots(figsize=(12, 6), dpi=300)
         pos = nx.kamada_kawai_layout(G)
         nx.draw_networkx_edges(G, pos, edge_color='#666666', width=1.5, ax=ax)
@@ -160,7 +159,6 @@ st.sidebar.header("⚙️ Pengaturan Analysis")
 
 uploaded_file = st.sidebar.file_uploader("Upload File CSV Penjualan", type=["csv"])
 
-# Pembacaan File Aman
 df_raw = None
 if uploaded_file is not None:
     df_raw = load_csv_safely(uploaded_file)
@@ -169,11 +167,35 @@ elif os.path.exists('Sales_Final_Unique.csv'):
 
 if df_raw is not None:
     st.sidebar.subheader("🎛️ Parameter Apriori")
-    min_support = st.sidebar.slider("Minimum Support", min_value=0.001, max_value=0.5, value=0.01, step=0.005)
-    min_confidence = st.sidebar.slider("Minimum Confidence", min_value=0.01, max_value=1.0, value=0.1, step=0.05)
-    min_lift = st.sidebar.slider("Minimum Lift Ratio", min_value=1.0, max_value=10.0, value=1.0, step=0.1)
+    
+    # ADJUSTABLE PER 0.01 (Bisa digeser halus tanpa lompat jauh)
+    min_support = st.sidebar.slider(
+        "Minimum Support", 
+        min_value=0.001, 
+        max_value=0.5, 
+        value=0.01, 
+        step=0.01, 
+        format="%.2f"
+    )
+    
+    min_confidence = st.sidebar.slider(
+        "Minimum Confidence", 
+        min_value=0.01, 
+        max_value=1.0, 
+        value=0.10, 
+        step=0.01, 
+        format="%.2f"
+    )
+    
+    min_lift = st.sidebar.slider(
+        "Minimum Lift Ratio", 
+        min_value=1.0, 
+        max_value=10.0, 
+        value=1.0, 
+        step=0.1, 
+        format="%.1f"
+    )
 
-    # Detect Kolom Transaksi & Produk
     cols = df_raw.columns.tolist()
     col_trans = st.sidebar.selectbox("Pilih Kolom ID Transaksi / Invoice", cols, index=0)
     col_prod = st.sidebar.selectbox("Pilih Kolom Nama Produk", cols, index=1 if len(cols) > 1 else 0)
@@ -182,18 +204,15 @@ if df_raw is not None:
     # 4. PREPROCESSING DATA & ALGORITMA APRIORI
     # ============================================================
     with st.spinner("Memproses Data & Menghitung Apriori..."):
-        # Grouping Data menjadi Basket Matrix
         basket = (df_raw.groupby([col_trans, col_prod])[col_prod]
                   .count().unstack().reset_index().fillna(0)
                   .set_index(col_trans))
         
-        # Enkodikasi 0 dan 1
         def encode_units(x):
             return 1 if x >= 1 else 0
 
         basket_sets = basket.map(encode_units) if hasattr(basket, 'map') else basket.applymap(encode_units)
 
-        # Jalankan Apriori & Association Rules
         frequent_itemsets = apriori(basket_sets, min_support=min_support, use_colnames=True)
         
         if not frequent_itemsets.empty:
@@ -214,7 +233,6 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # Tab Fitur Utama
     tab1, tab2, tab3 = st.tabs(["📜 Tabel Aturan Asosiasi", "🕸️ Diagram Network Interaktif", "📈 Grafik Evaluasi Rules"])
 
     with tab1:
