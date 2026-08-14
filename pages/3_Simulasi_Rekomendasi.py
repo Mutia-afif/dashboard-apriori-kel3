@@ -1,4 +1,4 @@
-import streamlit as stpages/3_Simulasi_Rekomendasi.py
+import streamlit as st
 from utils.data_processing import (
     load_and_clean_data, encode_transactions, run_apriori,
     get_all_items, get_recommendations,
@@ -6,8 +6,12 @@ from utils.data_processing import (
 
 st.set_page_config(page_title="Simulasi Rekomendasi | Apriori", page_icon="💊", layout="wide")
 
-df = st.session_state.get("df") or load_and_clean_data()
-df_encoded = st.session_state.get("df_encoded") or encode_transactions(df)
+df = st.session_state.get("df")
+if df is None:
+    df = load_and_clean_data()
+df_encoded = st.session_state.get("df_encoded")
+if df_encoded is None:
+    df_encoded = encode_transactions(df)
 
 st.title("💊 Simulasi Rekomendasi Produk")
 st.markdown(
