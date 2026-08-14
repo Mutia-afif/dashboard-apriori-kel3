@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as stpages/3_Simulasi_Rekomendasi.py
 from utils.data_processing import (
     load_and_clean_data, encode_transactions, run_apriori,
     get_all_items, get_recommendations,
