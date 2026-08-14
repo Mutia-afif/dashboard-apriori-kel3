@@ -51,7 +51,6 @@ min_lift_val = st.sidebar.slider("Minimum Lift Ratio", 1.0, 5.0, 1.0, 0.1)
 def process_market_basket(data, id_col, item_col):
     data = data.dropna(subset=[id_col, item_col])
     
-    # Menangani baris item yang dipisahkan koma
     basket_sets = (data.groupby([id_col, item_col])[item_col]
                    .count().unstack().reset_index().fillna(0)
                    .set_index(id_col))
@@ -59,7 +58,8 @@ def process_market_basket(data, id_col, item_col):
     def encode_units(x):
         return 0 if x <= 0 else 1
 
-    basket_encoded = basket_sets.applymap(encode_units)
+    # Diperbaiki menggunakan .map() agar kompatibel dengan pandas versi baru
+    basket_encoded = basket_sets.map(encode_units)
     basket_encoded = basket_encoded.astype(bool)
     return basket_encoded
 
@@ -88,7 +88,7 @@ with col4:
 
 st.markdown("---")
 
-# --- NAVIGASI TAB (LENGKAP DENGAN SIMULATOR BUNDLING) ---
+# --- NAVIGASI TAB ---
 tab1, tab2, tab3, tab4 = st.tabs([
     "📋 Tabel Aturan Asosiasi", 
     "💡 Simulator Bundling", 
@@ -117,7 +117,6 @@ with tab2:
             
         selected_item = st.selectbox("Pilih Produk yang Dibeli Pelanggan:", sorted(list(all_antecedents)))
         
-        # Filter berdasarkan produk yang dipilih
         recommendations = rules[rules['antecedents'].apply(lambda x: selected_item in list(x))]
         
         if not recommendations.empty:
