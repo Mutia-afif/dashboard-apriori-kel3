@@ -30,8 +30,9 @@ st.markdown(
 st.divider()
 
 st.sidebar.header("⚙️ Parameter Validasi")
-min_support = st.sidebar.slider("Minimum Support", 0.01, 0.10, 0.01, 0.01, key="stab_support")
-min_confidence = st.sidebar.slider("Minimum Confidence", 0.05, 0.80, 0.30, 0.05, key="stab_confidence")
+min_support = st.sidebar.slider("Minimum Support", 0.01, 0.10, 0.03, 0.01, key="stab_support")
+min_confidence = st.sidebar.slider("Minimum Confidence", 0.01, 0.80, 0.03, 0.01, key="stab_confidence")
+st.sidebar.caption("Default 0.03 / 0.03 mengikuti parameter model utama pada notebook.")
 
 with st.spinner("Menjalankan Apriori terpisah untuk periode Training & Testing..."):
     result = compute_stability(df, min_support=min_support, min_confidence=min_confidence)
