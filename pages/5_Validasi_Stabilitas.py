@@ -5,7 +5,9 @@ from utils.data_processing import load_and_clean_data, compute_stability
 
 st.set_page_config(page_title="Validasi Stabilitas | Apriori", page_icon="✅", layout="wide")
 
-df = st.session_state.get("df") or load_and_clean_data()
+df = st.session_state.get("df")
+if df is None:
+    df = load_and_clean_data()
 
 st.title("✅ Validasi Stabilitas Pola Pembelian")
 st.markdown(
