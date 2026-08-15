@@ -81,9 +81,11 @@ st.markdown(
     """
     - Mutia Afif Ramadhani
     - Nabilatus Salamah
-    - Raihan Gibran Arla Putra
+    - Rafly Iqbal Maulana
+    - Nazwa Tsabitha Putri HI
+    - Muhammad Kalam Mahardika Amron
 
-    **Dosen Pembimbing:** Dr. Damayanti, S.Kom., M.Kom.
+    **Dosen Pengampu:** Nirwana Hendrastuty, S.Kom., M.Cs.
 
     Fakultas Teknik dan Ilmu Komputer, Universitas Teknokrat Indonesia
     """
